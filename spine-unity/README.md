@@ -1,18 +1,42 @@
 # spine-unity
 
-The spine-unity runtime provides functionality to load, manipulate and render [Spine](http://esotericsoftware.com) skeletal animation data using [Unity](http://unity3d.com/) directly, without any other plugins. spine-unity is based on [spine-csharp](https://github.com/EsotericSoftware/spine-runtimes/tree/master/spine-csharp) and is very similar to [spine-tk2d](https://github.com/EsotericSoftware/spine-runtimes/tree/master/spine-tk2d).
+The spine-unity runtime provides functionality to load, manipulate and render [Spine](http://esotericsoftware.com) skeletal animation data using [Unity](http://unity3d.com/). spine-unity is based on [spine-csharp](https://github.com/EsotericSoftware/spine-runtimes/tree/master/spine-csharp).
 
-A Spine skeleton is a GameObject and can be used throughout Unity like any other GameObject. The `BoneComponent` class allows other GameObjects to follow a bone in a Spine skeleton.
+While spine-unity can render directly with Unity, without the need for any other plugins, it also works with [2D Toolkit](http://www.unikronsoftware.com/2dtoolkit/) and can render skeletons from a TK2D texture atlas.
 
-## Setup
+## Licensing
 
-To use spine-unity in your own Unity project first:
+This Spine Runtime may only be used for personal or internal use, typically to evaluate Spine before purchasing. If you would like to incorporate a Spine Runtime into your applications, distribute software containing a Spine Runtime, or modify a Spine Runtime, then you will need a valid [Spine license](https://esotericsoftware.com/spine-purchase). Please see the [Spine Runtimes Software License](https://github.com/EsotericSoftware/spine-runtimes/blob/master/LICENSE) for detailed information.
+
+The Spine Runtimes are developed with the intent to be used with data exported from Spine. By purchasing Spine, `Section 2` of the [Spine Software License](https://esotericsoftware.com/files/license.txt) grants the right to create and distribute derivative works of the Spine Runtimes.
+
+## Documentation
+
+A Spine skeleton is a GameObject and can be used throughout Unity like any other GameObject. It depends only on Unity's `MeshRenderer`, so it is close to the metal. `SkeletonUtility` allows other GameObjects to interact with the Spine skeleton, to control bones in the skeleton, be controlled by the skeleton, attach colliders, etc.
+
+Spine skeletons can be "baked" into native Unity animations for use with Mecanim. Baking is an advanced feature with a number of limitations, so in most cases baking should not be used.
+
+The [Spine Unity Features Tutorial](http://esotericsoftware.com/forum/Unity-Feature-Tutorials-4839) forum thread has many videos on how to use spine-unity.
+
+## Quick installation
+
+Download and run this Unity package:
+
+[spine-unity.unitypackage](http://esotericsoftware.com/files/runtimes/unity/spine-unity.unitypackage)
+
+In the `Assets/Examples/Scenes` folder you will find many example scenes that demonstrate various spine-unity features.
+
+## Manual installation
+
+You can also choose to setup and run from the Git files:
 
 1. Download the Spine Runtimes source using [git](https://help.github.com/articles/set-up-git) or by downloading it [as a zip](https://github.com/EsotericSoftware/spine-runtimes/archive/master.zip).
 1. Copy the contents of `spine-csharp/src` to `Assets/spine-csharp` in your Unity project directory.
 1. Copy the `spine-unity/Assets/spine-unity` to `Assets/spine-unity` in your Unity project directory.
 
-Next, there are a few options for importing Spine skeletons into your Unity project:
+## Importing skeleton data
+
+There are a few options for importing Spine skeletons into your Unity project:
 
 ### Drag and drop import
 

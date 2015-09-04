@@ -1,25 +1,26 @@
 /******************************************************************************
  * Spine Runtimes Software License
- * Version 2.1
+ * Version 2.3
  * 
- * Copyright (c) 2013, Esoteric Software
+ * Copyright (c) 2013-2015, Esoteric Software
  * All rights reserved.
  * 
  * You are granted a perpetual, non-exclusive, non-sublicensable and
- * non-transferable license to install, execute and perform the Spine Runtimes
- * Software (the "Software") solely for internal use. Without the written
- * permission of Esoteric Software (typically granted by licensing Spine), you
- * may not (a) modify, translate, adapt or otherwise create derivative works,
- * improvements of the Software or develop new applications using the Software
- * or (b) remove, delete, alter or obscure any trademarks or any copyright,
- * trademark, patent or other intellectual property or proprietary rights
- * notices on or in the Software, including any copy thereof. Redistributions
- * in binary or source form must include this license and terms.
+ * non-transferable license to use, install, execute and perform the Spine
+ * Runtimes Software (the "Software") and derivative works solely for personal
+ * or internal use. Without the written permission of Esoteric Software (see
+ * Section 2 of the Spine Software License Agreement), you may not (a) modify,
+ * translate, adapt or otherwise create derivative works, improvements of the
+ * Software or develop new applications using the Software or (b) remove,
+ * delete, alter or obscure any trademarks or any copyright, trademark, patent
+ * or other intellectual property or proprietary rights notices on or in the
+ * Software, including any copy thereof. Redistributions in binary or source
+ * form must include this license and terms.
  * 
  * THIS SOFTWARE IS PROVIDED BY ESOTERIC SOFTWARE "AS IS" AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL ESOTERIC SOFTARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * EVENT SHALL ESOTERIC SOFTWARE BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
  * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
  * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
@@ -368,8 +369,8 @@ void _spScaleTimeline_apply (const spTimeline* timeline, spSkeleton* skeleton, f
 
 	bone = skeleton->bones[self->boneIndex];
 	if (time >= self->frames[self->framesCount - 3]) { /* Time is after last frame. */
-		bone->scaleX += (bone->data->scaleX - 1 + self->frames[self->framesCount - 2] - bone->scaleX) * alpha;
-		bone->scaleY += (bone->data->scaleY - 1 + self->frames[self->framesCount - 1] - bone->scaleY) * alpha;
+		bone->scaleX += (bone->data->scaleX * self->frames[self->framesCount - 2] - bone->scaleX) * alpha;
+		bone->scaleY += (bone->data->scaleY * self->frames[self->framesCount - 1] - bone->scaleY) * alpha;
 		return;
 	}
 
@@ -381,9 +382,9 @@ void _spScaleTimeline_apply (const spTimeline* timeline, spSkeleton* skeleton, f
 	percent = 1 - (time - frameTime) / (self->frames[frameIndex + TRANSLATE_PREV_FRAME_TIME] - frameTime);
 	percent = spCurveTimeline_getCurvePercent(SUPER(self), frameIndex / 3 - 1, percent < 0 ? 0 : (percent > 1 ? 1 : percent));
 
-	bone->scaleX += (bone->data->scaleX - 1 + prevFrameX + (self->frames[frameIndex + TRANSLATE_FRAME_X] - prevFrameX) * percent
+	bone->scaleX += (bone->data->scaleX * (prevFrameX + (self->frames[frameIndex + TRANSLATE_FRAME_X] - prevFrameX) * percent)
 			- bone->scaleX) * alpha;
-	bone->scaleY += (bone->data->scaleY - 1 + prevFrameY + (self->frames[frameIndex + TRANSLATE_FRAME_Y] - prevFrameY) * percent
+	bone->scaleY += (bone->data->scaleY * (prevFrameY + (self->frames[frameIndex + TRANSLATE_FRAME_Y] - prevFrameY) * percent)
 			- bone->scaleY) * alpha;
 }
 
@@ -479,7 +480,7 @@ void _spAttachmentTimeline_apply (const spTimeline* timeline, spSkeleton* skelet
 
 	frameIndex = time >= self->frames[self->framesCount - 1] ?
 		self->framesCount - 1 : binarySearch1(self->frames, self->framesCount, time) - 1;
-	if (self->frames[frameIndex] <= lastTime) return;
+	if (self->frames[frameIndex] < lastTime) return;
 
 	attachmentName = self->attachmentNames[frameIndex];
 	spSlot_setAttachment(skeleton->slots[self->slotIndex],
@@ -602,7 +603,7 @@ void _spDrawOrderTimeline_apply (const spTimeline* timeline, spSkeleton* skeleto
 
 	drawOrderToSetupIndex = self->drawOrders[frameIndex];
 	if (!drawOrderToSetupIndex)
-		memcpy(skeleton->drawOrder, skeleton->slots, self->slotsCount * sizeof(int));
+		memcpy(skeleton->drawOrder, skeleton->slots, self->slotsCount * sizeof(spSlot*));
 	else {
 		for (i = 0; i < self->slotsCount; ++i)
 			skeleton->drawOrder[i] = skeleton->slots[drawOrderToSetupIndex[i]];
@@ -659,20 +660,17 @@ void _spFFDTimeline_apply (const spTimeline* timeline, spSkeleton* skeleton, flo
 	spSlot *slot = skeleton->slots[self->slotIndex];
 	if (slot->attachment != self->attachment) return;
 
-	if (time < self->frames[0]) {
-		slot->attachmentVerticesCount = 0;
-		return; /* Time is before first frame. */
-	}
+	if (time < self->frames[0]) return; /* Time is before first frame. */
 
-	if (slot->attachmentVerticesCount == 0) alpha = 1;
 	if (slot->attachmentVerticesCount < self->frameVerticesCount) {
 		if (slot->attachmentVerticesCapacity < self->frameVerticesCount) {
 			FREE(slot->attachmentVertices);
 			slot->attachmentVertices = MALLOC(float, self->frameVerticesCount);
 			slot->attachmentVerticesCapacity = self->frameVerticesCount;
 		}
-		slot->attachmentVerticesCount = self->frameVerticesCount;
 	}
+	if (slot->attachmentVerticesCount != self->frameVerticesCount) alpha = 1; /* Don't mix from uninitialized slot vertices. */
+	slot->attachmentVerticesCount = self->frameVerticesCount;
 
 	if (time >= self->frames[self->framesCount - 1]) {
 		/* Time is after last frame. */
@@ -746,8 +744,9 @@ void spFFDTimeline_setFrame (spFFDTimeline* self, int frameIndex, float time, fl
 /**/
 
 static const int IKCONSTRAINT_PREV_FRAME_TIME = -3;
+static const int IKCONSTRAINT_PREV_FRAME_MIX = -2;
+static const int IKCONSTRAINT_PREV_FRAME_BEND_DIRECTION = -1;
 static const int IKCONSTRAINT_FRAME_MIX = 1;
-static const int IKCONSTRAINT_FRAME_BEND_DIRECTION = 2;
 
 void _spIkConstraintTimeline_apply (const spTimeline* timeline, spSkeleton* skeleton, float lastTime, float time,
 		spEvent** firedEvents, int* eventsCount, float alpha) {
@@ -768,14 +767,14 @@ void _spIkConstraintTimeline_apply (const spTimeline* timeline, spSkeleton* skel
 
 	/* Interpolate between the previous frame and the current frame. */
 	frameIndex = binarySearch(self->frames, self->framesCount, time, 3);
-	prevFrameMix = self->frames[frameIndex - 2];
+	prevFrameMix = self->frames[frameIndex + IKCONSTRAINT_PREV_FRAME_MIX];
 	frameTime = self->frames[frameIndex];
 	percent = 1 - (time - frameTime) / (self->frames[frameIndex + IKCONSTRAINT_PREV_FRAME_TIME] - frameTime);
 	percent = spCurveTimeline_getCurvePercent(SUPER(self), frameIndex / 3 - 1, percent < 0 ? 0 : (percent > 1 ? 1 : percent));
 
 	mix = prevFrameMix + (self->frames[frameIndex + IKCONSTRAINT_FRAME_MIX] - prevFrameMix) * percent;
 	ikConstraint->mix += (mix - ikConstraint->mix) * alpha;
-	ikConstraint->bendDirection = (int)self->frames[frameIndex + IKCONSTRAINT_FRAME_BEND_DIRECTION];
+	ikConstraint->bendDirection = (int)self->frames[frameIndex + IKCONSTRAINT_PREV_FRAME_BEND_DIRECTION];
 }
 
 spIkConstraintTimeline* spIkConstraintTimeline_create (int framesCount) {
@@ -788,3 +787,50 @@ void spIkConstraintTimeline_setFrame (spIkConstraintTimeline* self, int frameInd
 	self->frames[frameIndex + 1] = mix;
 	self->frames[frameIndex + 2] = (float)bendDirection;
 }
+
+/**/
+
+void _spFlipTimeline_apply (const spTimeline* timeline, spSkeleton* skeleton, float lastTime, float time,
+		spEvent** firedEvents, int* eventsCount, float alpha) {
+	int frameIndex;
+	spFlipTimeline* self = (spFlipTimeline*)timeline;
+
+	if (time < self->frames[0]) {
+		if (lastTime > time) _spFlipTimeline_apply(timeline, skeleton, lastTime, (float)INT_MAX, 0, 0, 0);
+		return;
+	} else if (lastTime > time) /**/
+		lastTime = -1;
+
+	frameIndex = (time >= self->frames[self->framesCount - 2] ?
+		self->framesCount : binarySearch(self->frames, self->framesCount, time, 2)) - 2;
+	if (self->frames[frameIndex] < lastTime) return;
+
+	if (self->x)
+		skeleton->bones[self->boneIndex]->flipX = (int)self->frames[frameIndex + 1];
+	else
+		skeleton->bones[self->boneIndex]->flipY = (int)self->frames[frameIndex + 1];
+}
+
+void _spFlipTimeline_dispose (spTimeline* timeline) {
+	spFlipTimeline* self = SUB_CAST(spFlipTimeline, timeline);
+	_spTimeline_deinit(SUPER(self));
+	FREE(self->frames);
+	FREE(self);
+}
+
+spFlipTimeline* spFlipTimeline_create (int framesCount, int/*bool*/x) {
+	spFlipTimeline* self = NEW(spFlipTimeline);
+	_spTimeline_init(SUPER(self), x ? SP_TIMELINE_FLIPX : SP_TIMELINE_FLIPY, _spFlipTimeline_dispose, _spFlipTimeline_apply);
+	CONST_CAST(int, self->x) = x;
+	CONST_CAST(int, self->framesCount) = framesCount << 1;
+	CONST_CAST(float*, self->frames) = CALLOC(float, self->framesCount);
+	return self;
+}
+
+void spFlipTimeline_setFrame (spFlipTimeline* self, int frameIndex, float time, int/*bool*/flip) {
+	frameIndex <<= 1;
+	self->frames[frameIndex] = time;
+	self->frames[frameIndex + 1] = (float)flip;
+}
+
+/**/
